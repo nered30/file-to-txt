@@ -4,113 +4,296 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>파일 텍스트 추출기</title>
-<script src="https://cloudflare.com"></script>
-<link rel="stylesheet" href="https://jsdelivr.net">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
   :root {
-    --bg: #f8f9fa; --surface: #ffffff; --surface2: #f1f3f5; --border: #dee2e6;
-    --text: #212529; --text2: #6c757d; --primary: #4263eb; --primary-light: #edf2ff;
-    --primary-hover: #3b5bdb; --success: #2f9e44; --success-light: #ebfbee;
-    --danger: #e03131; --danger-light: #fff5f5;
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --surface2: #f1f3f5;
+    --border: #dee2e6;
+    --text: #212529;
+    --text2: #6c757d;
+    --primary: #4263eb;
+    --primary-light: #edf2ff;
+    --primary-hover: #3b5bdb;
+    --success: #2f9e44;
+    --success-light: #ebfbee;
+    --danger: #e03131;
+    --danger-light: #fff5f5;
     --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
-    --radius: 12px; --radius-sm: 8px;
+    --radius: 12px;
+    --radius-sm: 8px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
-      --text: #e6edf3; --text2: #8b949e; --primary: #4f72f5; --primary-light: #1a2340;
-      --primary-hover: #6b8aff; --success: #3fb950; --success-light: #0d2b12;
-      --danger: #f85149; --danger-light: #2d0f0f;
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text2: #8b949e;
+      --primary: #4f72f5;
+      --primary-light: #1a2340;
+      --primary-hover: #6b8aff;
+      --success: #3fb950;
+      --success-light: #0d2b12;
+      --danger: #f85149;
+      --danger-light: #2d0f0f;
       --shadow: 0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px 16px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px;
   }
   .container { max-width: 860px; margin: 0 auto; }
-  header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
   .logo {
-    width: 44px; height: 44px; background: var(--primary); border-radius: var(--radius-sm);
-    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; flex-shrink: 0;
+    width: 44px; height: 44px;
+    background: var(--primary);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 22px;
+    flex-shrink: 0;
   }
   header h1 { font-size: 1.4rem; font-weight: 700; }
   header p { font-size: .85rem; color: var(--text2); margin-top: 2px; }
+
+  /* Drop zone */
   .drop-zone {
-    border: 2px dashed var(--border); border-radius: var(--radius); background: var(--surface);
-    padding: 48px 24px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
   }
-  .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); }
-  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-zone.drag-over {
+    border-color: var(--primary);
+    background: var(--primary-light);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
   .drop-icon { font-size: 48px; color: var(--primary); margin-bottom: 12px; }
   .drop-zone h2 { font-size: 1.1rem; margin-bottom: 6px; }
   .drop-zone p { font-size: .85rem; color: var(--text2); }
   .drop-zone .btn-select {
-    display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; background: var(--primary); color: #fff;
-    border: none; border-radius: var(--radius-sm); padding: 9px 20px; font-size: .9rem; font-weight: 600; cursor: pointer; transition: background .15s; pointer-events: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 16px;
+    background: var(--primary); color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    padding: 9px 20px; font-size: .9rem; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+    pointer-events: none;
   }
   .drop-zone:hover .btn-select, .drop-zone.drag-over .btn-select { background: var(--primary-hover); }
+
+  /* Paste area */
   .paste-section { margin-top: 16px; }
-  .paste-section label { display: flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+  .paste-section label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .85rem; font-weight: 600; color: var(--text2);
+    margin-bottom: 8px;
+  }
   textarea {
-    width: 100%; min-height: 110px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-    color: var(--text); font-size: .875rem; font-family: inherit; padding: 12px; resize: vertical; outline: none; transition: border-color .15s;
+    width: 100%;
+    min-height: 110px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: .875rem;
+    font-family: inherit;
+    padding: 12px;
+    resize: vertical;
+    outline: none;
+    transition: border-color .15s;
   }
   textarea:focus { border-color: var(--primary); }
   textarea::placeholder { color: var(--text2); }
   .paste-btn {
-    margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1.5px solid var(--border);
-    color: var(--text); border-radius: var(--radius-sm); padding: 8px 16px; font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .15s;
+    margin-top: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    color: var(--text); border-radius: var(--radius-sm);
+    padding: 8px 16px; font-size: .875rem; font-weight: 600;
+    cursor: pointer; transition: background .15s;
   }
   .paste-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
-  .formats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
-  .fmt-tag { font-size: .75rem; padding: 3px 9px; border-radius: 20px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+
+  /* Formats */
+  .formats {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 16px;
+  }
+  .fmt-tag {
+    font-size: .75rem; padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--surface2); color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  /* Results */
   .results { margin-top: 28px; display: flex; flex-direction: column; gap: 20px; }
-  .result-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-  .card-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+
+  .result-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
   .file-icon { font-size: 20px; color: var(--primary); flex-shrink: 0; }
   .file-name { font-weight: 700; font-size: .95rem; flex: 1; word-break: break-all; }
-  .file-type-badge { font-size: .7rem; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 20px; background: var(--primary-light); color: var(--primary); flex-shrink: 0; }
-  .card-meta { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--border); background: var(--surface); }
-  .meta-item { display: flex; align-items: center; gap: 5px; font-size: .8rem; color: var(--text2); }
+  .file-type-badge {
+    font-size: .7rem; font-weight: 700; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 20px;
+    background: var(--primary-light); color: var(--primary);
+    flex-shrink: 0;
+  }
+  .card-meta {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .meta-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: .8rem; color: var(--text2);
+  }
   .meta-item i { font-size: 14px; }
-  .stats { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
-  .stat { flex: 1; text-align: center; padding: 12px 8px; border-right: 1px solid var(--border); }
+
+  /* Stats */
+  .stats {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .stat {
+    flex: 1; text-align: center;
+    padding: 12px 8px;
+    border-right: 1px solid var(--border);
+  }
   .stat:last-child { border-right: none; }
   .stat-val { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
   .stat-label { font-size: .72rem; color: var(--text2); margin-top: 2px; }
+
+  /* Content */
   .content-area {
-    padding: 16px 18px; font-size: .82rem; line-height: 1.7; color: var(--text); font-family: 'Courier New', Courier, monospace;
-    white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow-y: auto; background: var(--bg);
+    padding: 16px 18px;
+    font-size: .82rem;
+    line-height: 1.7;
+    color: var(--text);
+    font-family: 'Courier New', Courier, monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 340px;
+    overflow-y: auto;
+    background: var(--bg);
   }
   .content-area::-webkit-scrollbar { width: 6px; }
   .content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  .card-actions { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); background: var(--surface2); flex-wrap: wrap; }
+
+  /* Actions */
+  .card-actions {
+    display: flex; gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    flex-wrap: wrap;
+  }
   .action-btn {
-    display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: var(--radius-sm); font-size: .82rem; font-weight: 600;
-    cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); transition: all .15s;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--text);
+    transition: all .15s;
   }
   .action-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
   .action-btn.danger:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
   .action-btn.success { background: var(--success-light); border-color: var(--success); color: var(--success); }
+
+  /* ZIP sub-files */
   .zip-list { padding: 0 18px 14px; }
-  .zip-list-title { font-size: .8rem; font-weight: 700; color: var(--text2); margin: 10px 0 6px; display: flex; align-items: center; gap: 5px; }
-  .zip-entry { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 8px; }
-  .zip-entry-name { font-size: .82rem; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
-  .zip-entry-content { font-size: .78rem; font-family: 'Courier New', monospace; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; color: var(--text2); line-height: 1.6; }
-  .error-card { background: var(--danger-light); border: 1.5px solid var(--danger); border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: center; gap: 10px; color: var(--danger); font-size: .88rem; }
-  .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px; color: var(--text2); font-size: .9rem; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner { width: 20px; height: 20px; border: 2.5px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
-  .toolbar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 8px; }
-  .clear-all-btn, .download-all-btn {
-    display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: var(--radius-sm); font-size: .82rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); transition: all .15s;
+  .zip-list-title {
+    font-size: .8rem; font-weight: 700; color: var(--text2);
+    margin: 10px 0 6px;
+    display: flex; align-items: center; gap: 5px;
   }
-  .clear-all-btn { background: var(--surface); color: var(--text2); }
+  .zip-entry {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    margin-bottom: 8px;
+  }
+  .zip-entry-name { font-size: .82rem; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
+  .zip-entry-content {
+    font-size: .78rem; font-family: 'Courier New', monospace;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 200px; overflow-y: auto;
+    color: var(--text2); line-height: 1.6;
+  }
+
+  /* Error */
+  .error-card {
+    background: var(--danger-light); border: 1.5px solid var(--danger);
+    border-radius: var(--radius); padding: 14px 18px;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--danger); font-size: .88rem;
+  }
+
+  /* Loading */
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 24px;
+    color: var(--text2); font-size: .9rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2.5px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+
+  /* Clear all */
+  .toolbar {
+    display: flex; justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+  .clear-all-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--text2);
+    transition: all .15s;
+  }
   .clear-all-btn:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
-  .download-all-btn { background: var(--success-light); border-color: var(--success); color: var(--success); }
-  .download-all-btn:hover { background: var(--success); color: #fff; }
+
+  .empty-state {
+    text-align: center; color: var(--text2);
+    padding: 32px; font-size: .9rem;
+  }
 </style>
 </head>
 <body>
@@ -122,6 +305,8 @@
       <p>파일에서 텍스트를 추출하고 통계를 확인하세요</p>
     </div>
   </header>
+
+  <!-- Drop Zone -->
   <div class="drop-zone" id="dropZone">
     <input type="file" id="fileInput" multiple accept="*/*">
     <div class="drop-icon"><i class="ti ti-cloud-upload"></i></div>
@@ -129,12 +314,351 @@
     <p>또는 버튼을 클릭해 파일을 선택하세요</p>
     <div class="btn-select"><i class="ti ti-folder-open"></i> 파일 선택</div>
   </div>
+
+  <!-- Supported formats -->
   <div class="formats">
     <span class="fmt-tag">TXT</span><span class="fmt-tag">JSON</span><span class="fmt-tag">XML</span>
     <span class="fmt-tag">CSV</span><span class="fmt-tag">MD</span><span class="fmt-tag">HTML</span>
     <span class="fmt-tag">CSS</span><span class="fmt-tag">JS</span><span class="fmt-tag">YAML</span>
     <span class="fmt-tag">TOML</span><span class="fmt-tag">ZIP</span><span class="fmt-tag">바이너리(HEX)</span>
+    <span class="fmt-tag">기타 텍스트 파일</span>
   </div>
+
+  <!-- Paste section -->
   <div class="paste-section">
     <label><i class="ti ti-clipboard-text"></i> 텍스트 직접 붙여넣기</label>
     <textarea id="pasteArea" placeholder="여기에 텍스트를 붙여넣거나 직접 입력하세요..."></textarea>
+    <button class="paste-btn" id="analyzeBtn"><i class="ti ti-analyze"></i> 텍스트 분석</button>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="results"></div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const resultsEl = document.getElementById('results');
+const pasteArea = document.getElementById('pasteArea');
+const analyzeBtn = document.getElementById('analyzeBtn');
+
+// Drag & Drop
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  processFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', () => {
+  processFiles(Array.from(fileInput.files));
+  fileInput.value = '';
+});
+
+// Paste text
+analyzeBtn.addEventListener('click', () => {
+  const text = pasteArea.value.trim();
+  if (!text) return;
+  appendResult(buildTextCard('붙여넣기 텍스트', text, 'text/plain', null));
+  pasteArea.value = '';
+});
+
+// Ctrl+V on textarea -> analyze on Enter shortcut (optional)
+pasteArea.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') analyzeBtn.click();
+});
+
+// File type helpers
+function isText(name, mime) {
+  const textExts = /\.(txt|json|xml|csv|md|markdown|html|htm|css|js|ts|jsx|tsx|yaml|yml|toml|ini|cfg|conf|log|py|java|c|cpp|h|cs|go|rb|php|sh|bat|ps1|sql|svg|vue|svelte|dart|rs|kt|swift|r|m|tex|rst|nfo|srt|vtt|diff|patch|gitignore|env|properties|lock|gradle|cmake|makefile|dockerfile|tf|hcl|lua|pl|ex|exs|erl|fs|fsx|clj|elm|ml|hs|nim|zig)$/i;
+  return textExts.test(name) || (mime && mime.startsWith('text/'));
+}
+
+function isZip(name, mime) {
+  return /\.zip$/i.test(name) || mime === 'application/zip' || mime === 'application/x-zip-compressed';
+}
+
+function fileIcon(name) {
+  if (/\.zip$/i.test(name)) return 'ti-file-zip';
+  if (/\.(json|xml|yaml|yml|toml)$/i.test(name)) return 'ti-file-code';
+  if (/\.(html|htm|css)$/i.test(name)) return 'ti-brand-html5';
+  if (/\.(js|ts|jsx|tsx)$/i.test(name)) return 'ti-brand-javascript';
+  if (/\.(py)$/i.test(name)) return 'ti-brand-python';
+  if (/\.(md|markdown)$/i.test(name)) return 'ti-markdown';
+  if (/\.(csv)$/i.test(name)) return 'ti-table';
+  if (/\.(log)$/i.test(name)) return 'ti-terminal';
+  return 'ti-file-text';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+
+function formatDate(ts) {
+  if (!ts) return '-';
+  return new Date(ts).toLocaleString('ko-KR');
+}
+
+function countStats(text) {
+  const chars = text.length;
+  const lines = text.split('\n').length;
+  const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+  return { chars, lines, words };
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function buildTextCard(name, text, mime, file, subCards) {
+  const s = countStats(text);
+  const ext = (name.match(/\.([^.]+)$/) || ['','TXT'])[1].toUpperCase();
+  const icon = fileIcon(name);
+  const metaHtml = file ? `
+    <div class="card-meta">
+      <span class="meta-item"><i class="ti ti-weight"></i>${formatSize(file.size)}</span>
+      <span class="meta-item"><i class="ti ti-file-info"></i>${mime || '알 수 없음'}</span>
+      ${file.lastModified ? `<span class="meta-item"><i class="ti ti-calendar"></i>${formatDate(file.lastModified)}</span>` : ''}
+    </div>` : '';
+
+  const statsHtml = `
+    <div class="stats">
+      <div class="stat"><div class="stat-val">${s.chars.toLocaleString()}</div><div class="stat-label">글자수</div></div>
+      <div class="stat"><div class="stat-val">${s.lines.toLocaleString()}</div><div class="stat-label">줄수</div></div>
+      <div class="stat"><div class="stat-val">${s.words.toLocaleString()}</div><div class="stat-label">단어수</div></div>
+    </div>`;
+
+  const contentHtml = subCards ? subCards : `<div class="content-area">${escapeHtml(text)}</div>`;
+
+  const card = document.createElement('div');
+  card.className = 'result-card';
+  card.innerHTML = `
+    <div class="card-header">
+      <i class="ti ${icon} file-icon"></i>
+      <span class="file-name">${escapeHtml(name)}</span>
+      <span class="file-type-badge">${ext}</span>
+    </div>
+    ${metaHtml}
+    ${statsHtml}
+    ${contentHtml}
+    <div class="card-actions">
+      <button class="action-btn copy-btn"><i class="ti ti-copy"></i> 복사</button>
+      <button class="action-btn save-btn"><i class="ti ti-download"></i> TXT 저장</button>
+      <button class="action-btn danger remove-btn"><i class="ti ti-trash"></i> 제거</button>
+    </div>`;
+
+  card.querySelector('.copy-btn').addEventListener('click', function() {
+    navigator.clipboard.writeText(text).then(() => {
+      this.innerHTML = '<i class="ti ti-check"></i> 복사됨';
+      this.classList.add('success');
+      setTimeout(() => { this.innerHTML = '<i class="ti ti-copy"></i> 복사'; this.classList.remove('success'); }, 1800);
+    });
+  });
+
+  card.querySelector('.save-btn').addEventListener('click', () => {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name.replace(/\.[^.]+$/, '') + '_extracted.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  card.querySelector('.remove-btn').addEventListener('click', () => {
+    card.remove();
+    updateToolbar();
+  });
+
+  return card;
+}
+
+function buildHexDump(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const limit = Math.min(bytes.length, 2048);
+  let hex = '';
+  for (let i = 0; i < limit; i += 16) {
+    const row = bytes.slice(i, i + 16);
+    const addr = i.toString(16).padStart(6, '0');
+    const hexPart = Array.from(row).map(b => b.toString(16).padStart(2,'0')).join(' ').padEnd(47);
+    const asciiPart = Array.from(row).map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('');
+    hex += `${addr}  ${hexPart}  |${asciiPart}|\n`;
+  }
+  if (bytes.length > limit) hex += `\n... 이하 ${(bytes.length - limit).toLocaleString()} 바이트 생략 ...`;
+  return hex;
+}
+
+async function processFiles(files) {
+  ensureToolbar();
+  for (const file of files) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'loading result-card';
+    placeholder.innerHTML = `<div class="spinner"></div> <span>${escapeHtml(file.name)} 처리 중...</span>`;
+    resultsEl.appendChild(placeholder);
+
+    try {
+      let card;
+      if (isZip(file.name, file.type)) {
+        card = await processZip(file);
+      } else {
+        const text = await readAsText(file);
+        if (text !== null) {
+          card = buildTextCard(file.name, text, file.type, file);
+        } else {
+          const buf = await readAsBuffer(file);
+          const hex = buildHexDump(buf);
+          card = buildTextCard(file.name, hex, file.type, file);
+          card.querySelector('.file-type-badge').textContent = 'BIN';
+          card.querySelector('.file-icon').className = 'ti ti-binary file-icon';
+        }
+      }
+      placeholder.replaceWith(card);
+    } catch (err) {
+      const errEl = document.createElement('div');
+      errEl.className = 'error-card';
+      errEl.innerHTML = `<i class="ti ti-alert-circle" style="font-size:20px"></i> <strong>${escapeHtml(file.name)}</strong>: ${escapeHtml(err.message)}`;
+      placeholder.replaceWith(errEl);
+    }
+    updateToolbar();
+  }
+}
+
+function readAsText(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result;
+      // heuristic: check for null bytes (binary)
+      if (text.indexOf('\0') !== -1) resolve(null);
+      else resolve(text);
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsText(file, 'utf-8');
+  });
+}
+
+function readAsBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('파일 읽기 실패'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function processZip(file) {
+  const buf = await readAsBuffer(file);
+  const zip = await JSZip.loadAsync(buf);
+  const entries = Object.values(zip.files).filter(f => !f.dir);
+
+  let allText = '';
+  const subCardsHtml = document.createElement('div');
+  subCardsHtml.className = 'zip-list';
+  const title = document.createElement('div');
+  title.className = 'zip-list-title';
+  title.innerHTML = `<i class="ti ti-files"></i> 내부 파일 ${entries.length}개`;
+  subCardsHtml.appendChild(title);
+
+  for (const entry of entries) {
+    let content;
+    try {
+      const textContent = await entry.async('text');
+      if (textContent.indexOf('\0') !== -1) {
+        const binBuf = await entry.async('arraybuffer');
+        content = buildHexDump(binBuf);
+      } else {
+        content = textContent;
+      }
+    } catch {
+      content = '(읽기 실패)';
+    }
+    allText += `=== ${entry.name} ===\n${content}\n\n`;
+
+    const entryEl = document.createElement('div');
+    entryEl.className = 'zip-entry';
+    entryEl.innerHTML = `<div class="zip-entry-name"><i class="ti ${fileIcon(entry.name)}" style="margin-right:4px"></i>${escapeHtml(entry.name)}</div>
+      <div class="zip-entry-content">${escapeHtml(content)}</div>`;
+    subCardsHtml.appendChild(entryEl);
+  }
+
+  return buildTextCard(file.name, allText, file.type, file, subCardsHtml);
+}
+
+
+
+function formatCode(text, name) {
+  const ext = (name.match(/\.([^.]+)$/) || ['',''])[1].toLowerCase();
+  const opts = { indent_size: 2, wrap_line_length: 120 };
+  if (/^(json)$/.test(ext)) {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  }
+  if (/^(js|ts|jsx|tsx|mjs|cjs)$/.test(ext)) {
+    return js_beautify(text, opts);
+  }
+  if (/^(html|htm|vue|svelte)$/.test(ext)) {
+    return html_beautify(text, { ...opts, indent_inner_html: true, extra_liners: [] });
+  }
+  if (/^(css|scss|less|sass)$/.test(ext)) {
+    return css_beautify(text, opts);
+  }
+  if (/^(xml|svg)$/.test(ext)) {
+    return formatXml(text);
+  }
+  // fallback: try JSON, then JS
+  try { return JSON.stringify(JSON.parse(text), null, 2); } catch {}
+  try { return js_beautify(text, opts); } catch {}
+  throw new Error('지원하지 않는 형식');
+}
+
+function formatXml(xml) {
+  let indent = 0;
+  return xml
+    .replace(/>\s*</g, '><')
+    .replace(/(<[^/!][^>]*[^/]>|<[^/!][^>]*[^/]>)/g, m => m)
+    .split(/(?<=>)(?=<)/)
+    .map(node => {
+      if (/^<\//.test(node)) indent--;
+      const line = '  '.repeat(Math.max(0, indent)) + node.trim();
+      if (/^<[^/!][^>]*[^/]>$/.test(node) && !/<.*\/>/.test(node)) indent++;
+      return line;
+    })
+    .join('\n');
+}
+
+
+
+
+
+function appendResult(card) {
+  ensureToolbar();
+  resultsEl.appendChild(card);
+  updateToolbar();
+}
+
+function ensureToolbar() {
+  if (!document.getElementById('toolbar')) {
+    const tb = document.createElement('div');
+    tb.className = 'toolbar'; tb.id = 'toolbar';
+    const btn = document.createElement('button');
+    btn.className = 'clear-all-btn';
+    btn.innerHTML = '<i class="ti ti-trash"></i> 모두 지우기';
+    btn.addEventListener('click', () => {
+      resultsEl.innerHTML = '';
+      tb.remove();
+    });
+    tb.appendChild(btn);
+    resultsEl.before(tb);
+  }
+}
+
+function updateToolbar() {
+  const tb = document.getElementById('toolbar');
+  if (!tb) return;
+  if (resultsEl.children.length === 0) tb.remove();
+}
+
+
+</script>
+</body>
+</html>
