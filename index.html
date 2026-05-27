@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>파일 텍스트 추출기</title>
+<script src="https://cloudflare.com"></script>
+<link rel="stylesheet" href="https://jsdelivr.net">
+<style>
+  :root {
+    --bg: #f8f9fa; --surface: #ffffff; --surface2: #f1f3f5; --border: #dee2e6;
+    --text: #212529; --text2: #6c757d; --primary: #4263eb; --primary-light: #edf2ff;
+    --primary-hover: #3b5bdb; --success: #2f9e44; --success-light: #ebfbee;
+    --danger: #e03131; --danger-light: #fff5f5;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    --radius: 12px; --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
+      --text: #e6edf3; --text2: #8b949e; --primary: #4f72f5; --primary-light: #1a2340;
+      --primary-hover: #6b8aff; --success: #3fb950; --success-light: #0d2b12;
+      --danger: #f85149; --danger-light: #2d0f0f;
+      --shadow: 0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px 16px;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .logo {
+    width: 44px; height: 44px; background: var(--primary); border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; flex-shrink: 0;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; }
+  header p { font-size: .85rem; color: var(--text2); margin-top: 2px; }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); background: var(--surface);
+    padding: 48px 24px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative;
+  }
+  .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 48px; color: var(--primary); margin-bottom: 12px; }
+  .drop-zone h2 { font-size: 1.1rem; margin-bottom: 6px; }
+  .drop-zone p { font-size: .85rem; color: var(--text2); }
+  .drop-zone .btn-select {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; background: var(--primary); color: #fff;
+    border: none; border-radius: var(--radius-sm); padding: 9px 20px; font-size: .9rem; font-weight: 600; cursor: pointer; transition: background .15s; pointer-events: none;
+  }
+  .drop-zone:hover .btn-select, .drop-zone.drag-over .btn-select { background: var(--primary-hover); }
+  .paste-section { margin-top: 16px; }
+  .paste-section label { display: flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+  textarea {
+    width: 100%; min-height: 110px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-size: .875rem; font-family: inherit; padding: 12px; resize: vertical; outline: none; transition: border-color .15s;
+  }
+  textarea:focus { border-color: var(--primary); }
+  textarea::placeholder { color: var(--text2); }
+  .paste-btn {
+    margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1.5px solid var(--border);
+    color: var(--text); border-radius: var(--radius-sm); padding: 8px 16px; font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .15s;
+  }
+  .paste-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .formats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+  .fmt-tag { font-size: .75rem; padding: 3px 9px; border-radius: 20px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  .results { margin-top: 28px; display: flex; flex-direction: column; gap: 20px; }
+  .result-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .card-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .file-icon { font-size: 20px; color: var(--primary); flex-shrink: 0; }
+  .file-name { font-weight: 700; font-size: .95rem; flex: 1; word-break: break-all; }
+  .file-type-badge { font-size: .7rem; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 20px; background: var(--primary-light); color: var(--primary); flex-shrink: 0; }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .meta-item { display: flex; align-items: center; gap: 5px; font-size: .8rem; color: var(--text2); }
+  .meta-item i { font-size: 14px; }
+  .stats { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+  .stat { flex: 1; text-align: center; padding: 12px 8px; border-right: 1px solid var(--border); }
+  .stat:last-child { border-right: none; }
+  .stat-val { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
+  .stat-label { font-size: .72rem; color: var(--text2); margin-top: 2px; }
+  .content-area {
+    padding: 16px 18px; font-size: .82rem; line-height: 1.7; color: var(--text); font-family: 'Courier New', Courier, monospace;
+    white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow-y: auto; background: var(--bg);
+  }
+  .content-area::-webkit-scrollbar { width: 6px; }
+  .content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .card-actions { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); background: var(--surface2); flex-wrap: wrap; }
+  .action-btn {
+    display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: var(--radius-sm); font-size: .82rem; font-weight: 600;
+    cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); transition: all .15s;
+  }
+  .action-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .action-btn.danger:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+  .action-btn.success { background: var(--success-light); border-color: var(--success); color: var(--success); }
+  .zip-list { padding: 0 18px 14px; }
+  .zip-list-title { font-size: .8rem; font-weight: 700; color: var(--text2); margin: 10px 0 6px; display: flex; align-items: center; gap: 5px; }
+  .zip-entry { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 8px; }
+  .zip-entry-name { font-size: .82rem; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
+  .zip-entry-content { font-size: .78rem; font-family: 'Courier New', monospace; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; color: var(--text2); line-height: 1.6; }
+  .error-card { background: var(--danger-light); border: 1.5px solid var(--danger); border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: center; gap: 10px; color: var(--danger); font-size: .88rem; }
+  .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px; color: var(--text2); font-size: .9rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 20px; height: 20px; border: 2.5px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
+  .toolbar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 8px; }
+  .clear-all-btn, .download-all-btn {
+    display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: var(--radius-sm); font-size: .82rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); transition: all .15s;
+  }
+  .clear-all-btn { background: var(--surface); color: var(--text2); }
+  .clear-all-btn:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+  .download-all-btn { background: var(--success-light); border-color: var(--success); color: var(--success); }
+  .download-all-btn:hover { background: var(--success); color: #fff; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo"><i class="ti ti-file-text"></i></div>
+    <div>
+      <h1>파일 텍스트 추출기</h1>
+      <p>파일에서 텍스트를 추출하고 통계를 확인하세요</p>
+    </div>
+  </header>
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" multiple accept="*/*">
+    <div class="drop-icon"><i class="ti ti-cloud-upload"></i></div>
+    <h2>파일을 여기에 끌어다 놓으세요</h2>
+    <p>또는 버튼을 클릭해 파일을 선택하세요</p>
+    <div class="btn-select"><i class="ti ti-folder-open"></i> 파일 선택</div>
+  </div>
+  <div class="formats">
+    <span class="fmt-tag">TXT</span><span class="fmt-tag">JSON</span><span class="fmt-tag">XML</span>
+    <span class="fmt-tag">CSV</span><span class="fmt-tag">MD</span><span class="fmt-tag">HTML</span>
+    <span class="fmt-tag">CSS</span><span class="fmt-tag">JS</span><span class="fmt-tag">YAML</span>
+    <span class="fmt-tag">TOML</span><span class="fmt-tag">ZIP</span><span class="fmt-tag">바이너리(HEX)</span>
+  </div>
+  <div class="paste-section">
+    <label><i class="ti ti-clipboard-text"></i> 텍스트 직접 붙여넣기</label>
+    <textarea id="pasteArea" placeholder="여기에 텍스트를 붙여넣거나 직접 입력하세요..."></textarea>
