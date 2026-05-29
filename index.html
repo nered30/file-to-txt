@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>파일 텍스트 추출기</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.1/beautify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.1/beautify-html.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.1/beautify-css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
   :root {
@@ -21,6 +26,8 @@
     --success-light: #ebfbee;
     --danger: #e03131;
     --danger-light: #fff5f5;
+    --warning: #e67700;
+    --warning-light: #fff9db;
     --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
     --radius: 12px;
     --radius-sm: 8px;
@@ -40,6 +47,8 @@
       --success-light: #0d2b12;
       --danger: #f85149;
       --danger-light: #2d0f0f;
+      --warning: #f0b429;
+      --warning-light: #2d2000;
       --shadow: 0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
     }
   }
@@ -53,37 +62,24 @@
   }
   .container { max-width: 860px; margin: 0 auto; }
   header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
+    display: flex; align-items: center; gap: 12px; margin-bottom: 28px;
   }
   .logo {
-    width: 44px; height: 44px;
-    background: var(--primary);
+    width: 44px; height: 44px; background: var(--primary);
     border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 22px;
-    flex-shrink: 0;
+    color: #fff; font-size: 22px; flex-shrink: 0;
   }
   header h1 { font-size: 1.4rem; font-weight: 700; }
   header p { font-size: .85rem; color: var(--text2); margin-top: 2px; }
 
   /* Drop zone */
   .drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    padding: 48px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color .2s, background .2s;
-    position: relative;
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    background: var(--surface); padding: 48px 24px; text-align: center;
+    cursor: pointer; transition: border-color .2s, background .2s; position: relative;
   }
-  .drop-zone.drag-over {
-    border-color: var(--primary);
-    background: var(--primary-light);
-  }
+  .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); }
   .drop-zone input[type=file] {
     position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
   }
@@ -91,13 +87,10 @@
   .drop-zone h2 { font-size: 1.1rem; margin-bottom: 6px; }
   .drop-zone p { font-size: .85rem; color: var(--text2); }
   .drop-zone .btn-select {
-    display: inline-flex; align-items: center; gap: 6px;
-    margin-top: 16px;
-    background: var(--primary); color: #fff;
-    border: none; border-radius: var(--radius-sm);
-    padding: 9px 20px; font-size: .9rem; font-weight: 600;
-    cursor: pointer; transition: background .15s;
-    pointer-events: none;
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 16px;
+    background: var(--primary); color: #fff; border: none; border-radius: var(--radius-sm);
+    padding: 9px 20px; font-size: .9rem; font-weight: 600; cursor: pointer;
+    transition: background .15s; pointer-events: none;
   }
   .drop-zone:hover .btn-select, .drop-zone.drag-over .btn-select { background: var(--primary-hover); }
 
@@ -105,194 +98,259 @@
   .paste-section { margin-top: 16px; }
   .paste-section label {
     display: flex; align-items: center; gap: 6px;
-    font-size: .85rem; font-weight: 600; color: var(--text2);
-    margin-bottom: 8px;
+    font-size: .85rem; font-weight: 600; color: var(--text2); margin-bottom: 8px;
   }
   textarea {
-    width: 100%;
-    min-height: 110px;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-size: .875rem;
-    font-family: inherit;
-    padding: 12px;
-    resize: vertical;
-    outline: none;
-    transition: border-color .15s;
+    width: 100%; min-height: 110px; background: var(--surface);
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-size: .875rem; font-family: inherit;
+    padding: 12px; resize: vertical; outline: none; transition: border-color .15s;
   }
   textarea:focus { border-color: var(--primary); }
   textarea::placeholder { color: var(--text2); }
   .paste-btn {
-    margin-top: 8px;
-    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;
     background: var(--surface2); border: 1.5px solid var(--border);
     color: var(--text); border-radius: var(--radius-sm);
-    padding: 8px 16px; font-size: .875rem; font-weight: 600;
-    cursor: pointer; transition: background .15s;
+    padding: 8px 16px; font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .15s;
   }
   .paste-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
 
   /* Formats */
-  .formats {
-    display: flex; flex-wrap: wrap; gap: 6px;
-    margin-top: 16px;
-  }
+  .formats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
   .fmt-tag {
-    font-size: .75rem; padding: 3px 9px;
-    border-radius: 20px;
-    background: var(--surface2); color: var(--text2);
-    border: 1px solid var(--border);
+    font-size: .75rem; padding: 3px 9px; border-radius: 20px;
+    background: var(--surface2); color: var(--text2); border: 1px solid var(--border);
   }
 
   /* Results */
   .results { margin-top: 28px; display: flex; flex-direction: column; gap: 20px; }
-
   .result-card {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
   }
   .card-header {
-    display: flex; align-items: center; gap: 10px;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface2);
+    display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border); background: var(--surface2);
   }
   .file-icon { font-size: 20px; color: var(--primary); flex-shrink: 0; }
   .file-name { font-weight: 700; font-size: .95rem; flex: 1; word-break: break-all; }
   .file-type-badge {
     font-size: .7rem; font-weight: 700; letter-spacing: .04em;
     padding: 2px 8px; border-radius: 20px;
-    background: var(--primary-light); color: var(--primary);
-    flex-shrink: 0;
+    background: var(--primary-light); color: var(--primary); flex-shrink: 0;
   }
   .card-meta {
-    display: flex; flex-wrap: wrap; gap: 8px;
-    padding: 10px 18px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 18px;
+    border-bottom: 1px solid var(--border); background: var(--surface);
   }
-  .meta-item {
-    display: flex; align-items: center; gap: 5px;
-    font-size: .8rem; color: var(--text2);
-  }
+  .meta-item { display: flex; align-items: center; gap: 5px; font-size: .8rem; color: var(--text2); }
   .meta-item i { font-size: 14px; }
-
-  /* Stats */
-  .stats {
-    display: flex; gap: 0;
-    border-bottom: 1px solid var(--border);
-  }
+  .stats { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
   .stat {
-    flex: 1; text-align: center;
-    padding: 12px 8px;
+    flex: 1; text-align: center; padding: 12px 8px;
     border-right: 1px solid var(--border);
   }
   .stat:last-child { border-right: none; }
   .stat-val { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
   .stat-label { font-size: .72rem; color: var(--text2); margin-top: 2px; }
-
-  /* Content */
   .content-area {
-    padding: 16px 18px;
-    font-size: .82rem;
-    line-height: 1.7;
-    color: var(--text);
-    font-family: 'Courier New', Courier, monospace;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 340px;
-    overflow-y: auto;
-    background: var(--bg);
+    padding: 16px 18px; font-size: .82rem; line-height: 1.7; color: var(--text);
+    font-family: 'Courier New', Courier, monospace; white-space: pre-wrap;
+    word-break: break-word; max-height: 340px; overflow-y: auto; background: var(--bg);
   }
   .content-area::-webkit-scrollbar { width: 6px; }
   .content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  /* Actions */
   .card-actions {
-    display: flex; gap: 8px;
-    padding: 12px 18px;
-    border-top: 1px solid var(--border);
-    background: var(--surface2);
-    flex-wrap: wrap;
+    display: flex; gap: 8px; padding: 12px 18px;
+    border-top: 1px solid var(--border); background: var(--surface2); flex-wrap: wrap;
   }
   .action-btn {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 7px 14px; border-radius: var(--radius-sm);
     font-size: .82rem; font-weight: 600; cursor: pointer;
-    border: 1.5px solid var(--border);
-    background: var(--surface); color: var(--text);
+    border: 1.5px solid var(--border); background: var(--surface); color: var(--text);
     transition: all .15s;
   }
   .action-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
   .action-btn.danger:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
   .action-btn.success { background: var(--success-light); border-color: var(--success); color: var(--success); }
 
-  /* ZIP sub-files */
+  /* ZIP */
   .zip-list { padding: 0 18px 14px; }
   .zip-list-title {
     font-size: .8rem; font-weight: 700; color: var(--text2);
-    margin: 10px 0 6px;
-    display: flex; align-items: center; gap: 5px;
+    margin: 10px 0 6px; display: flex; align-items: center; gap: 5px;
   }
   .zip-entry {
     background: var(--surface2); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px 14px;
-    margin-bottom: 8px;
+    border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 8px;
   }
   .zip-entry-name { font-size: .82rem; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
   .zip-entry-content {
     font-size: .78rem; font-family: 'Courier New', monospace;
     white-space: pre-wrap; word-break: break-word;
-    max-height: 200px; overflow-y: auto;
-    color: var(--text2); line-height: 1.6;
+    max-height: 200px; overflow-y: auto; color: var(--text2); line-height: 1.6;
   }
 
-  /* Error */
+  /* Error / Loading */
   .error-card {
     background: var(--danger-light); border: 1.5px solid var(--danger);
     border-radius: var(--radius); padding: 14px 18px;
     display: flex; align-items: center; gap: 10px;
     color: var(--danger); font-size: .88rem;
   }
-
-  /* Loading */
   .loading {
     display: flex; align-items: center; justify-content: center;
-    gap: 10px; padding: 24px;
-    color: var(--text2); font-size: .9rem;
+    gap: 10px; padding: 24px; color: var(--text2); font-size: .9rem;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .spinner {
-    width: 20px; height: 20px;
-    border: 2.5px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
+    width: 20px; height: 20px; border: 2.5px solid var(--border);
+    border-top-color: var(--primary); border-radius: 50%;
     animation: spin .7s linear infinite;
   }
 
-  /* Clear all */
+  /* Toolbar */
   .toolbar {
-    display: flex; justify-content: flex-end;
-    margin-bottom: 8px;
+    display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px;
   }
   .clear-all-btn {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 7px 14px; border-radius: var(--radius-sm);
     font-size: .82rem; font-weight: 600; cursor: pointer;
-    border: 1.5px solid var(--border);
-    background: var(--surface); color: var(--text2);
+    border: 1.5px solid var(--border); background: var(--surface); color: var(--text2);
     transition: all .15s;
   }
   .clear-all-btn:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+  .download-all-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--success); background: var(--success-light); color: var(--success);
+    transition: all .15s;
+  }
+  .download-all-btn:hover { filter: brightness(1.08); }
 
-  .empty-state {
-    text-align: center; color: var(--text2);
-    padding: 32px; font-size: .9rem;
+  /* ===== 문서 뷰어 섹션 ===== */
+  .doc-viewer-section {
+    margin-top: 40px;
+    border-top: 2px solid var(--border);
+    padding-top: 32px;
+  }
+  .section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 1.1rem; font-weight: 700; margin-bottom: 6px;
+  }
+  .section-title i { font-size: 22px; color: var(--warning); }
+  .section-desc { font-size: .83rem; color: var(--text2); margin-bottom: 18px; }
+
+  .doc-drop-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    background: var(--surface); padding: 32px 24px; text-align: center;
+    cursor: pointer; transition: border-color .2s, background .2s; position: relative;
+  }
+  .doc-drop-zone.drag-over { border-color: var(--warning); background: var(--warning-light); }
+  .doc-drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .doc-drop-zone .doc-drop-icon { font-size: 38px; color: var(--warning); margin-bottom: 8px; }
+  .doc-drop-zone h3 { font-size: 1rem; margin-bottom: 4px; }
+  .doc-drop-zone p { font-size: .82rem; color: var(--text2); }
+  .doc-drop-zone .btn-doc-select {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+    background: var(--warning); color: #fff; border: none; border-radius: var(--radius-sm);
+    padding: 8px 18px; font-size: .88rem; font-weight: 600; pointer-events: none;
+  }
+
+  /* 비밀번호 패널 */
+  .pw-panel {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--warning-light); border: 1.5px solid var(--warning);
+    border-radius: var(--radius-sm); padding: 12px 16px; margin-top: 14px;
+  }
+  .pw-panel i { font-size: 18px; color: var(--warning); flex-shrink: 0; }
+  .pw-panel span { font-size: .85rem; font-weight: 600; color: var(--warning); }
+  .pw-input {
+    flex: 1; min-width: 180px; background: var(--surface);
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-size: .875rem; padding: 7px 12px; outline: none;
+    transition: border-color .15s;
+  }
+  .pw-input:focus { border-color: var(--warning); }
+  .pw-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 16px; border-radius: var(--radius-sm);
+    font-size: .85rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--warning); background: var(--warning); color: #fff;
+    transition: filter .15s;
+  }
+  .pw-btn:hover { filter: brightness(1.1); }
+
+  /* 문서 결과 */
+  .doc-result {
+    margin-top: 16px; background: var(--surface);
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .doc-result-header {
+    display: flex; align-items: center; gap: 10px; padding: 13px 18px;
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+  }
+  .doc-result-header .file-name { font-weight: 700; font-size: .95rem; flex: 1; word-break: break-all; }
+
+  /* PDF 캔버스 영역 */
+  .pdf-pages {
+    padding: 16px 18px; background: var(--bg);
+    max-height: 600px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px; align-items: center;
+  }
+  .pdf-pages::-webkit-scrollbar { width: 6px; }
+  .pdf-pages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .pdf-page-wrap { position: relative; }
+  .pdf-page-num {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(0,0,0,.45); color: #fff;
+    font-size: .7rem; padding: 2px 7px; border-radius: 10px;
+  }
+  .pdf-pages canvas { max-width: 100%; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+
+  /* Excel 테이블 */
+  .excel-sheet-tabs {
+    display: flex; gap: 4px; padding: 10px 18px 0;
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .sheet-tab {
+    padding: 5px 14px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    font-size: .8rem; font-weight: 600; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--border); border-bottom: none;
+    color: var(--text2); transition: all .15s;
+  }
+  .sheet-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .excel-table-wrap {
+    overflow: auto; max-height: 500px; padding: 0;
+  }
+  .excel-table-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+  .excel-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  table.excel-tbl {
+    border-collapse: collapse; font-size: .8rem; width: 100%;
+  }
+  table.excel-tbl th {
+    background: var(--surface2); color: var(--text2);
+    font-weight: 700; padding: 7px 12px;
+    border: 1px solid var(--border); text-align: center;
+    position: sticky; top: 0; z-index: 1;
+  }
+  table.excel-tbl td {
+    padding: 6px 12px; border: 1px solid var(--border);
+    white-space: nowrap; color: var(--text);
+  }
+  table.excel-tbl tr:nth-child(even) td { background: var(--surface2); }
+
+  .doc-actions {
+    display: flex; gap: 8px; padding: 12px 18px;
+    border-top: 1px solid var(--border); background: var(--surface2); flex-wrap: wrap;
   }
 </style>
 </head>
@@ -333,144 +391,328 @@
 
   <!-- Results -->
   <div id="results" class="results"></div>
+
+  <!-- ===== 문서 뷰어 섹션 ===== -->
+  <div class="doc-viewer-section">
+    <div class="section-title">
+      <i class="ti ti-lock-open"></i>
+      <span>PDF / Excel 문서 뷰어</span>
+    </div>
+    <p class="section-desc">PDF, Excel 파일을 열거나 암호화된 문서의 비밀번호를 입력해 내용을 확인하세요.</p>
+
+    <div class="doc-drop-zone" id="docDropZone">
+      <input type="file" id="docFileInput" accept=".pdf,.xlsx,.xls,.xlsm,.csv">
+      <div class="doc-drop-icon"><i class="ti ti-file-import"></i></div>
+      <h3>PDF 또는 Excel 파일을 놓으세요</h3>
+      <p>.pdf / .xlsx / .xls / .xlsm / .csv 지원</p>
+      <div class="btn-doc-select"><i class="ti ti-folder-open"></i> 파일 선택</div>
+    </div>
+
+    <!-- 비밀번호 입력 패널 -->
+    <div class="pw-panel" id="pwPanel" style="display:none">
+      <i class="ti ti-lock"></i>
+      <span>암호화된 문서입니다. 비밀번호를 입력하세요:</span>
+      <input type="password" class="pw-input" id="pwInput" placeholder="비밀번호 입력...">
+      <button class="pw-btn" id="pwBtn"><i class="ti ti-key"></i> 열기</button>
+    </div>
+
+    <!-- 문서 결과 표시 영역 -->
+    <div id="docResult"></div>
+  </div>
 </div>
 
 <script>
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const resultsEl = document.getElementById('results');
-const pasteArea = document.getElementById('pasteArea');
-const analyzeBtn = document.getElementById('analyzeBtn');
+// ── PDF.js worker ──
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// Drag & Drop
+const dropZone    = document.getElementById('dropZone');
+const fileInput   = document.getElementById('fileInput');
+const resultsEl   = document.getElementById('results');
+const pasteArea   = document.getElementById('pasteArea');
+const analyzeBtn  = document.getElementById('analyzeBtn');
+const docDropZone = document.getElementById('docDropZone');
+const docFileInput= document.getElementById('docFileInput');
+const docResult   = document.getElementById('docResult');
+const pwPanel     = document.getElementById('pwPanel');
+const pwInput     = document.getElementById('pwInput');
+const pwBtn       = document.getElementById('pwBtn');
+
+let pendingDocFile = null;
+
+// ── 텍스트 추출 드롭존 ──
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
+  e.preventDefault(); dropZone.classList.remove('drag-over');
   processFiles(Array.from(e.dataTransfer.files));
 });
-fileInput.addEventListener('change', () => {
-  processFiles(Array.from(fileInput.files));
-  fileInput.value = '';
-});
+fileInput.addEventListener('change', () => { processFiles(Array.from(fileInput.files)); fileInput.value = ''; });
 
-// Paste text
 analyzeBtn.addEventListener('click', () => {
   const text = pasteArea.value.trim();
   if (!text) return;
   appendResult(buildTextCard('붙여넣기 텍스트', text, 'text/plain', null));
   pasteArea.value = '';
 });
+pasteArea.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') analyzeBtn.click(); });
 
-// Ctrl+V on textarea -> analyze on Enter shortcut (optional)
-pasteArea.addEventListener('keydown', e => {
-  if (e.ctrlKey && e.key === 'Enter') analyzeBtn.click();
+// ── 문서 뷰어 드롭존 ──
+docDropZone.addEventListener('dragover', e => { e.preventDefault(); docDropZone.classList.add('drag-over'); });
+docDropZone.addEventListener('dragleave', () => docDropZone.classList.remove('drag-over'));
+docDropZone.addEventListener('drop', e => {
+  e.preventDefault(); docDropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0]; if (f) openDocFile(f);
 });
+docFileInput.addEventListener('change', () => {
+  const f = docFileInput.files[0]; if (f) openDocFile(f); docFileInput.value = '';
+});
+pwBtn.addEventListener('click', () => { if (pendingDocFile) openDocFile(pendingDocFile, pwInput.value); });
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') pwBtn.click(); });
 
-// File type helpers
-function isText(name, mime) {
-  const textExts = /\.(txt|json|xml|csv|md|markdown|html|htm|css|js|ts|jsx|tsx|yaml|yml|toml|ini|cfg|conf|log|py|java|c|cpp|h|cs|go|rb|php|sh|bat|ps1|sql|svg|vue|svelte|dart|rs|kt|swift|r|m|tex|rst|nfo|srt|vtt|diff|patch|gitignore|env|properties|lock|gradle|cmake|makefile|dockerfile|tf|hcl|lua|pl|ex|exs|erl|fs|fsx|clj|elm|ml|hs|nim|zig)$/i;
-  return textExts.test(name) || (mime && mime.startsWith('text/'));
+// ── 문서 파일 열기 ──
+async function openDocFile(file, password = '') {
+  const ext = file.name.split('.').pop().toLowerCase();
+  docResult.innerHTML = `<div class="loading result-card"><div class="spinner"></div><span>${escapeHtml(file.name)} 불러오는 중...</span></div>`;
+  pwPanel.style.display = 'none';
+  try {
+    if (ext === 'pdf') {
+      await openPdf(file, password);
+    } else if (/^(xlsx|xls|xlsm|csv)$/.test(ext)) {
+      await openExcel(file, password);
+    } else {
+      docResult.innerHTML = `<div class="error-card"><i class="ti ti-alert-circle" style="font-size:20px"></i> 지원하지 않는 형식입니다.</div>`;
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('password') || msg.includes('암호') || err.name === 'PasswordException') {
+      pendingDocFile = file;
+      docResult.innerHTML = '';
+      pwPanel.style.display = 'flex';
+      pwInput.focus();
+    } else {
+      docResult.innerHTML = `<div class="error-card"><i class="ti ti-alert-circle" style="font-size:20px"></i> ${escapeHtml(msg || '문서를 열 수 없습니다.')}</div>`;
+    }
+  }
 }
 
+// ── PDF 렌더링 ──
+async function openPdf(file, password) {
+  const buf = await readAsBuffer(file);
+  const loadingTask = pdfjsLib.getDocument({ data: buf, password: password || undefined });
+  const pdf = await loadingTask.promise;
+  const totalPages = pdf.numPages;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'doc-result';
+  wrap.innerHTML = `
+    <div class="doc-result-header">
+      <i class="ti ti-file-type-pdf file-icon" style="color:#e03131"></i>
+      <span class="file-name">${escapeHtml(file.name)}</span>
+      <span class="file-type-badge" style="background:var(--danger-light);color:var(--danger)">PDF</span>
+      <span style="font-size:.8rem;color:var(--text2);margin-left:4px">${totalPages}페이지</span>
+    </div>
+    <div class="pdf-pages" id="pdfPages"></div>
+    <div class="doc-actions">
+      <button class="action-btn" id="pdfCopyBtn"><i class="ti ti-copy"></i> 텍스트 복사</button>
+      <button class="action-btn" id="pdfSaveBtn"><i class="ti ti-download"></i> TXT 저장</button>
+    </div>`;
+  docResult.innerHTML = '';
+  docResult.appendChild(wrap);
+  pendingDocFile = null; pwPanel.style.display = 'none';
+
+  const pdfPages = wrap.querySelector('#pdfPages');
+  let fullText = '';
+
+  for (let i = 1; i <= totalPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.4 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const pw = document.createElement('div');
+    pw.className = 'pdf-page-wrap';
+    pw.innerHTML = `<span class="pdf-page-num">${i} / ${totalPages}</span>`;
+    pw.appendChild(canvas);
+    pdfPages.appendChild(pw);
+    const tc = await page.getTextContent();
+    fullText += tc.items.map(it => it.str).join(' ') + '\n';
+  }
+
+  wrap.querySelector('#pdfCopyBtn').addEventListener('click', function() {
+    navigator.clipboard.writeText(fullText).then(() => {
+      this.innerHTML = '<i class="ti ti-check"></i> 복사됨';
+      this.classList.add('success');
+      setTimeout(() => { this.innerHTML = '<i class="ti ti-copy"></i> 텍스트 복사'; this.classList.remove('success'); }, 1800);
+    });
+  });
+  wrap.querySelector('#pdfSaveBtn').addEventListener('click', () => {
+    downloadTxt(fullText, file.name.replace(/\.pdf$/i,'') + '_extracted.txt');
+  });
+}
+
+// ── Excel 렌더링 ──
+async function openExcel(file, password) {
+  const buf = await readAsBuffer(file);
+  let wb;
+  try {
+    const opts = { type: 'array' };
+    if (password) opts.password = password;
+    wb = XLSX.read(buf, opts);
+  } catch(e) {
+    if (e.message && (e.message.includes('password') || e.message.includes('Encrypted'))) throw new Error('password');
+    throw e;
+  }
+
+  const sheetNames = wb.SheetNames;
+  const wrap = document.createElement('div');
+  wrap.className = 'doc-result';
+  wrap.innerHTML = `
+    <div class="doc-result-header">
+      <i class="ti ti-file-spreadsheet file-icon" style="color:#2f9e44"></i>
+      <span class="file-name">${escapeHtml(file.name)}</span>
+      <span class="file-type-badge" style="background:var(--success-light);color:var(--success)">EXCEL</span>
+      <span style="font-size:.8rem;color:var(--text2);margin-left:4px">${sheetNames.length}개 시트</span>
+    </div>
+    <div class="excel-sheet-tabs" id="sheetTabs">${sheetNames.map((n,i)=>`<div class="sheet-tab${i===0?' active':''}" data-sheet="${i}">${escapeHtml(n)}</div>`).join('')}</div>
+    <div class="excel-table-wrap" id="excelTableWrap"></div>
+    <div class="doc-actions">
+      <button class="action-btn" id="xlsCopyBtn"><i class="ti ti-copy"></i> 텍스트 복사</button>
+      <button class="action-btn" id="xlsSaveBtn"><i class="ti ti-download"></i> TXT 저장</button>
+    </div>`;
+  docResult.innerHTML = '';
+  docResult.appendChild(wrap);
+  pendingDocFile = null; pwPanel.style.display = 'none';
+
+  function renderSheet(idx) {
+    const ws = wb.Sheets[sheetNames[idx]];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (!data.length) { wrap.querySelector('#excelTableWrap').innerHTML = '<p style="padding:20px;color:var(--text2);font-size:.85rem">빈 시트입니다.</p>'; return; }
+    const maxCols = Math.max(...data.map(r => r.length));
+    const colHeaders = Array.from({length: maxCols}, (_,i) => String.fromCharCode(65+(i%26))+(i>=26?Math.floor(i/26):''));
+    let html = '<table class="excel-tbl"><thead><tr><th>#</th>'+colHeaders.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>';
+    data.forEach((row,ri) => {
+      html += `<tr><th>${ri+1}</th>`;
+      for (let ci=0;ci<maxCols;ci++) html += `<td>${escapeHtml(String(row[ci]??''))}</td>`;
+      html += '</tr>';
+    });
+    wrap.querySelector('#excelTableWrap').innerHTML = html+'</tbody></table>';
+  }
+  renderSheet(0);
+
+  wrap.querySelector('#sheetTabs').addEventListener('click', e => {
+    const tab = e.target.closest('.sheet-tab'); if (!tab) return;
+    wrap.querySelectorAll('.sheet-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active'); renderSheet(parseInt(tab.dataset.sheet));
+  });
+
+  const getAllText = () => sheetNames.map(n=>`=== ${n} ===\n`+XLSX.utils.sheet_to_csv(wb.Sheets[n])).join('\n\n');
+
+  wrap.querySelector('#xlsCopyBtn').addEventListener('click', function() {
+    navigator.clipboard.writeText(getAllText()).then(() => {
+      this.innerHTML = '<i class="ti ti-check"></i> 복사됨'; this.classList.add('success');
+      setTimeout(()=>{ this.innerHTML='<i class="ti ti-copy"></i> 텍스트 복사'; this.classList.remove('success'); },1800);
+    });
+  });
+  wrap.querySelector('#xlsSaveBtn').addEventListener('click', () => {
+    downloadTxt(getAllText(), file.name.replace(/\.[^.]+$/,'')+'_extracted.txt');
+  });
+}
+
+// ── 공통 유틸 ──
 function isZip(name, mime) {
   return /\.zip$/i.test(name) || mime === 'application/zip' || mime === 'application/x-zip-compressed';
 }
-
 function fileIcon(name) {
   if (/\.zip$/i.test(name)) return 'ti-file-zip';
   if (/\.(json|xml|yaml|yml|toml)$/i.test(name)) return 'ti-file-code';
   if (/\.(html|htm|css)$/i.test(name)) return 'ti-brand-html5';
   if (/\.(js|ts|jsx|tsx)$/i.test(name)) return 'ti-brand-javascript';
-  if (/\.(py)$/i.test(name)) return 'ti-brand-python';
+  if (/\.py$/i.test(name)) return 'ti-brand-python';
   if (/\.(md|markdown)$/i.test(name)) return 'ti-markdown';
-  if (/\.(csv)$/i.test(name)) return 'ti-table';
-  if (/\.(log)$/i.test(name)) return 'ti-terminal';
+  if (/\.csv$/i.test(name)) return 'ti-table';
+  if (/\.log$/i.test(name)) return 'ti-terminal';
   return 'ti-file-text';
 }
-
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
-  return (bytes/1024/1024).toFixed(2) + ' MB';
-}
-
-function formatDate(ts) {
-  if (!ts) return '-';
-  return new Date(ts).toLocaleString('ko-KR');
-}
-
-function countStats(text) {
-  const chars = text.length;
-  const lines = text.split('\n').length;
-  const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
-  return { chars, lines, words };
-}
-
-function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function formatSize(b) { return b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB'; }
+function formatDate(ts) { return ts ? new Date(ts).toLocaleString('ko-KR') : '-'; }
+function countStats(text) { return { chars:text.length, lines:text.split('\n').length, words:text.trim()===''?0:text.trim().split(/\s+/).length }; }
+function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function downloadTxt(text, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
 }
 
 function buildTextCard(name, text, mime, file, subCards) {
   const s = countStats(text);
   const ext = (name.match(/\.([^.]+)$/) || ['','TXT'])[1].toUpperCase();
-  const icon = fileIcon(name);
-  const metaHtml = file ? `
-    <div class="card-meta">
-      <span class="meta-item"><i class="ti ti-weight"></i>${formatSize(file.size)}</span>
-      <span class="meta-item"><i class="ti ti-file-info"></i>${mime || '알 수 없음'}</span>
-      ${file.lastModified ? `<span class="meta-item"><i class="ti ti-calendar"></i>${formatDate(file.lastModified)}</span>` : ''}
+  const metaHtml = file ? `<div class="card-meta">
+    <span class="meta-item"><i class="ti ti-weight"></i>${formatSize(file.size)}</span>
+    <span class="meta-item"><i class="ti ti-file-info"></i>${mime||'알 수 없음'}</span>
+    ${file.lastModified?`<span class="meta-item"><i class="ti ti-calendar"></i>${formatDate(file.lastModified)}</span>`:''}
     </div>` : '';
-
-  const statsHtml = `
-    <div class="stats">
-      <div class="stat"><div class="stat-val">${s.chars.toLocaleString()}</div><div class="stat-label">글자수</div></div>
-      <div class="stat"><div class="stat-val">${s.lines.toLocaleString()}</div><div class="stat-label">줄수</div></div>
-      <div class="stat"><div class="stat-val">${s.words.toLocaleString()}</div><div class="stat-label">단어수</div></div>
+  const statsHtml = `<div class="stats">
+    <div class="stat"><div class="stat-val">${s.chars.toLocaleString()}</div><div class="stat-label">글자수</div></div>
+    <div class="stat"><div class="stat-val">${s.lines.toLocaleString()}</div><div class="stat-label">줄수</div></div>
+    <div class="stat"><div class="stat-val">${s.words.toLocaleString()}</div><div class="stat-label">단어수</div></div>
     </div>`;
-
-  const contentHtml = subCards ? subCards : `<div class="content-area">${escapeHtml(text)}</div>`;
 
   const card = document.createElement('div');
   card.className = 'result-card';
+  card._extractedText = text;
+  card._fileName = name;
   card.innerHTML = `
     <div class="card-header">
-      <i class="ti ${icon} file-icon"></i>
+      <i class="ti ${fileIcon(name)} file-icon"></i>
       <span class="file-name">${escapeHtml(name)}</span>
       <span class="file-type-badge">${ext}</span>
     </div>
-    ${metaHtml}
-    ${statsHtml}
-    ${contentHtml}
+    ${metaHtml}${statsHtml}
+    ${subCards ? subCards.outerHTML || subCards : `<div class="content-area">${escapeHtml(text)}</div>`}
     <div class="card-actions">
       <button class="action-btn copy-btn"><i class="ti ti-copy"></i> 복사</button>
       <button class="action-btn save-btn"><i class="ti ti-download"></i> TXT 저장</button>
+      <button class="action-btn format-btn"><i class="ti ti-wand"></i> 코드 정렬</button>
       <button class="action-btn danger remove-btn"><i class="ti ti-trash"></i> 제거</button>
     </div>`;
 
+  // subCards가 DOM element면 innerHTML 교체 방식 안됨 → 직접 삽입
+  if (subCards && typeof subCards === 'object' && subCards.nodeType) {
+    const statsEl = card.querySelector('.stats');
+    statsEl.after(subCards);
+    card.querySelector('.content-area') && card.querySelector('.content-area').remove();
+  }
+
   card.querySelector('.copy-btn').addEventListener('click', function() {
     navigator.clipboard.writeText(text).then(() => {
-      this.innerHTML = '<i class="ti ti-check"></i> 복사됨';
-      this.classList.add('success');
-      setTimeout(() => { this.innerHTML = '<i class="ti ti-copy"></i> 복사'; this.classList.remove('success'); }, 1800);
+      this.innerHTML='<i class="ti ti-check"></i> 복사됨'; this.classList.add('success');
+      setTimeout(()=>{ this.innerHTML='<i class="ti ti-copy"></i> 복사'; this.classList.remove('success'); },1800);
     });
   });
+  card.querySelector('.save-btn').addEventListener('click', () => downloadTxt(text, name.replace(/\.[^.]+$/,'')+'_extracted.txt'));
+  card.querySelector('.remove-btn').addEventListener('click', () => { card.remove(); updateToolbar(); });
 
-  card.querySelector('.save-btn').addEventListener('click', () => {
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name.replace(/\.[^.]+$/, '') + '_extracted.txt';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-
-  card.querySelector('.remove-btn').addEventListener('click', () => {
-    card.remove();
-    updateToolbar();
-  });
-
+  const formatBtn = card.querySelector('.format-btn');
+  const contentArea = card.querySelector('.content-area');
+  if (!contentArea) { formatBtn.style.display='none'; }
+  else {
+    let formatted = null;
+    formatBtn.addEventListener('click', function() {
+      if (formatted !== null) {
+        contentArea.textContent=text; formatted=null;
+        this.innerHTML='<i class="ti ti-wand"></i> 코드 정렬'; this.classList.remove('success'); return;
+      }
+      try {
+        formatted = formatCode(text, name);
+        contentArea.textContent = formatted;
+        this.innerHTML='<i class="ti ti-wand-off"></i> 원본 보기'; this.classList.add('success');
+      } catch {
+        this.innerHTML='<i class="ti ti-alert-circle"></i> 정렬 실패';
+        setTimeout(()=>{ this.innerHTML='<i class="ti ti-wand"></i> 코드 정렬'; },2000);
+      }
+    });
+  }
   return card;
 }
 
@@ -478,25 +720,24 @@ function buildHexDump(buffer) {
   const bytes = new Uint8Array(buffer);
   const limit = Math.min(bytes.length, 2048);
   let hex = '';
-  for (let i = 0; i < limit; i += 16) {
-    const row = bytes.slice(i, i + 16);
-    const addr = i.toString(16).padStart(6, '0');
-    const hexPart = Array.from(row).map(b => b.toString(16).padStart(2,'0')).join(' ').padEnd(47);
-    const asciiPart = Array.from(row).map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('');
+  for (let i=0;i<limit;i+=16) {
+    const row = bytes.slice(i,i+16);
+    const addr = i.toString(16).padStart(6,'0');
+    const hexPart = Array.from(row).map(b=>b.toString(16).padStart(2,'0')).join(' ').padEnd(47);
+    const asciiPart = Array.from(row).map(b=>(b>=32&&b<127)?String.fromCharCode(b):'.').join('');
     hex += `${addr}  ${hexPart}  |${asciiPart}|\n`;
   }
-  if (bytes.length > limit) hex += `\n... 이하 ${(bytes.length - limit).toLocaleString()} 바이트 생략 ...`;
+  if (bytes.length>limit) hex += `\n... 이하 ${(bytes.length-limit).toLocaleString()} 바이트 생략 ...`;
   return hex;
 }
 
 async function processFiles(files) {
   ensureToolbar();
   for (const file of files) {
-    const placeholder = document.createElement('div');
-    placeholder.className = 'loading result-card';
-    placeholder.innerHTML = `<div class="spinner"></div> <span>${escapeHtml(file.name)} 처리 중...</span>`;
-    resultsEl.appendChild(placeholder);
-
+    const ph = document.createElement('div');
+    ph.className='loading result-card';
+    ph.innerHTML=`<div class="spinner"></div><span>${escapeHtml(file.name)} 처리 중...</span>`;
+    resultsEl.appendChild(ph);
     try {
       let card;
       if (isZip(file.name, file.type)) {
@@ -507,158 +748,119 @@ async function processFiles(files) {
           card = buildTextCard(file.name, text, file.type, file);
         } else {
           const buf = await readAsBuffer(file);
-          const hex = buildHexDump(buf);
-          card = buildTextCard(file.name, hex, file.type, file);
-          card.querySelector('.file-type-badge').textContent = 'BIN';
-          card.querySelector('.file-icon').className = 'ti ti-binary file-icon';
+          card = buildTextCard(file.name, buildHexDump(buf), file.type, file);
+          card.querySelector('.file-type-badge').textContent='BIN';
+          card.querySelector('.file-icon').className='ti ti-binary file-icon';
         }
       }
-      placeholder.replaceWith(card);
-    } catch (err) {
-      const errEl = document.createElement('div');
-      errEl.className = 'error-card';
-      errEl.innerHTML = `<i class="ti ti-alert-circle" style="font-size:20px"></i> <strong>${escapeHtml(file.name)}</strong>: ${escapeHtml(err.message)}`;
-      placeholder.replaceWith(errEl);
+      ph.replaceWith(card);
+    } catch(err) {
+      const el = document.createElement('div');
+      el.className='error-card';
+      el.innerHTML=`<i class="ti ti-alert-circle" style="font-size:20px"></i> <strong>${escapeHtml(file.name)}</strong>: ${escapeHtml(err.message)}`;
+      ph.replaceWith(el);
     }
     updateToolbar();
   }
 }
 
 function readAsText(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target.result;
-      // heuristic: check for null bytes (binary)
-      if (text.indexOf('\0') !== -1) resolve(null);
-      else resolve(text);
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsText(file, 'utf-8');
+  return new Promise(resolve => {
+    const r = new FileReader();
+    r.onload = e => { const t=e.target.result; resolve(t.indexOf('\0')!==-1?null:t); };
+    r.onerror = () => resolve(null);
+    r.readAsText(file,'utf-8');
   });
 }
-
 function readAsBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error('파일 읽기 실패'));
-    reader.readAsArrayBuffer(file);
+  return new Promise((resolve,reject) => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.onerror = () => reject(new Error('파일 읽기 실패'));
+    r.readAsArrayBuffer(file);
   });
 }
 
 async function processZip(file) {
   const buf = await readAsBuffer(file);
   const zip = await JSZip.loadAsync(buf);
-  const entries = Object.values(zip.files).filter(f => !f.dir);
-
+  const entries = Object.values(zip.files).filter(f=>!f.dir);
   let allText = '';
-  const subCardsHtml = document.createElement('div');
-  subCardsHtml.className = 'zip-list';
-  const title = document.createElement('div');
-  title.className = 'zip-list-title';
-  title.innerHTML = `<i class="ti ti-files"></i> 내부 파일 ${entries.length}개`;
-  subCardsHtml.appendChild(title);
-
+  const subEl = document.createElement('div');
+  subEl.className = 'zip-list';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'zip-list-title';
+  titleEl.innerHTML = `<i class="ti ti-files"></i> 내부 파일 ${entries.length}개`;
+  subEl.appendChild(titleEl);
   for (const entry of entries) {
     let content;
     try {
-      const textContent = await entry.async('text');
-      if (textContent.indexOf('\0') !== -1) {
-        const binBuf = await entry.async('arraybuffer');
-        content = buildHexDump(binBuf);
-      } else {
-        content = textContent;
-      }
-    } catch {
-      content = '(읽기 실패)';
-    }
+      const tc = await entry.async('text');
+      if (tc.indexOf('\0')!==-1) { const b=await entry.async('arraybuffer'); content=buildHexDump(b); }
+      else content=tc;
+    } catch { content='(읽기 실패)'; }
     allText += `=== ${entry.name} ===\n${content}\n\n`;
-
-    const entryEl = document.createElement('div');
-    entryEl.className = 'zip-entry';
-    entryEl.innerHTML = `<div class="zip-entry-name"><i class="ti ${fileIcon(entry.name)}" style="margin-right:4px"></i>${escapeHtml(entry.name)}</div>
+    const el = document.createElement('div');
+    el.className='zip-entry';
+    el.innerHTML=`<div class="zip-entry-name"><i class="ti ${fileIcon(entry.name)}" style="margin-right:4px"></i>${escapeHtml(entry.name)}</div>
       <div class="zip-entry-content">${escapeHtml(content)}</div>`;
-    subCardsHtml.appendChild(entryEl);
+    subEl.appendChild(el);
   }
-
-  return buildTextCard(file.name, allText, file.type, file, subCardsHtml);
+  return buildTextCard(file.name, allText, file.type, file, subEl);
 }
 
-
-
+// ── 코드 포매터 ──
 function formatCode(text, name) {
   const ext = (name.match(/\.([^.]+)$/) || ['',''])[1].toLowerCase();
-  const opts = { indent_size: 2, wrap_line_length: 120 };
-  if (/^(json)$/.test(ext)) {
-    return JSON.stringify(JSON.parse(text), null, 2);
-  }
-  if (/^(js|ts|jsx|tsx|mjs|cjs)$/.test(ext)) {
-    return js_beautify(text, opts);
-  }
-  if (/^(html|htm|vue|svelte)$/.test(ext)) {
-    return html_beautify(text, { ...opts, indent_inner_html: true, extra_liners: [] });
-  }
-  if (/^(css|scss|less|sass)$/.test(ext)) {
-    return css_beautify(text, opts);
-  }
-  if (/^(xml|svg)$/.test(ext)) {
-    return formatXml(text);
-  }
-  // fallback: try JSON, then JS
-  try { return JSON.stringify(JSON.parse(text), null, 2); } catch {}
-  try { return js_beautify(text, opts); } catch {}
+  const opts = { indent_size:2, wrap_line_length:120 };
+  if (ext==='json') return JSON.stringify(JSON.parse(text),null,2);
+  if (/^(js|ts|jsx|tsx|mjs|cjs)$/.test(ext)) return js_beautify(text,opts);
+  if (/^(html|htm|vue|svelte)$/.test(ext)) return html_beautify(text,{...opts,indent_inner_html:true,extra_liners:[]});
+  if (/^(css|scss|less|sass)$/.test(ext)) return css_beautify(text,opts);
+  if (/^(xml|svg)$/.test(ext)) return formatXml(text);
+  try { return JSON.stringify(JSON.parse(text),null,2); } catch {}
+  try { return js_beautify(text,opts); } catch {}
   throw new Error('지원하지 않는 형식');
 }
-
 function formatXml(xml) {
-  let indent = 0;
-  return xml
-    .replace(/>\s*</g, '><')
-    .replace(/(<[^/!][^>]*[^/]>|<[^/!][^>]*[^/]>)/g, m => m)
-    .split(/(?<=>)(?=<)/)
-    .map(node => {
-      if (/^<\//.test(node)) indent--;
-      const line = '  '.repeat(Math.max(0, indent)) + node.trim();
-      if (/^<[^/!][^>]*[^/]>$/.test(node) && !/<.*\/>/.test(node)) indent++;
-      return line;
-    })
-    .join('\n');
+  let indent=0;
+  return xml.replace(/>\s*</g,'><').split(/(?<=>)(?=<)/).map(node=>{
+    if (/^<\//.test(node)) indent--;
+    const line='  '.repeat(Math.max(0,indent))+node.trim();
+    if (/^<[^/!][^>]*[^/]>$/.test(node)&&!/<.*\/>/.test(node)) indent++;
+    return line;
+  }).join('\n');
 }
 
-
-
-
-
-function appendResult(card) {
-  ensureToolbar();
-  resultsEl.appendChild(card);
-  updateToolbar();
-}
-
+// ── 툴바 ──
 function ensureToolbar() {
-  if (!document.getElementById('toolbar')) {
-    const tb = document.createElement('div');
-    tb.className = 'toolbar'; tb.id = 'toolbar';
-    const btn = document.createElement('button');
-    btn.className = 'clear-all-btn';
-    btn.innerHTML = '<i class="ti ti-trash"></i> 모두 지우기';
-    btn.addEventListener('click', () => {
-      resultsEl.innerHTML = '';
-      tb.remove();
-    });
-    tb.appendChild(btn);
-    resultsEl.before(tb);
-  }
-}
+  if (document.getElementById('toolbar')) return;
+  const tb = document.createElement('div');
+  tb.className='toolbar'; tb.id='toolbar';
 
+  const dlBtn = document.createElement('button');
+  dlBtn.className='download-all-btn';
+  dlBtn.innerHTML='<i class="ti ti-download"></i> 전체 TXT 저장';
+  dlBtn.addEventListener('click', () => {
+    const cards = Array.from(resultsEl.querySelectorAll('.result-card'));
+    if (!cards.length) return;
+    const all = cards.map(c=>`${'='.repeat(60)}\n파일: ${c._fileName||'텍스트'}\n${'='.repeat(60)}\n${c._extractedText||''}`).join('\n\n');
+    downloadTxt(all, '전체_추출결과_'+new Date().toISOString().slice(0,10)+'.txt');
+  });
+
+  const clrBtn = document.createElement('button');
+  clrBtn.className='clear-all-btn';
+  clrBtn.innerHTML='<i class="ti ti-trash"></i> 모두 지우기';
+  clrBtn.addEventListener('click', () => { resultsEl.innerHTML=''; tb.remove(); });
+
+  tb.appendChild(dlBtn); tb.appendChild(clrBtn);
+  resultsEl.before(tb);
+}
 function updateToolbar() {
   const tb = document.getElementById('toolbar');
-  if (!tb) return;
-  if (resultsEl.children.length === 0) tb.remove();
+  if (tb && resultsEl.children.length===0) tb.remove();
 }
-
-
+function appendResult(card) { ensureToolbar(); resultsEl.appendChild(card); updateToolbar(); }
 </script>
 </body>
 </html>
